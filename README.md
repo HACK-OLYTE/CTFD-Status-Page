@@ -41,6 +41,7 @@ Go to the **Plugins > Status-page** section in the admin panel to:
 - Set an event end date, configure the TOP X value to display, define the support load, etc.
 
 Here is a demo video of the plugin:
+
 https://github.com/user-attachments/assets/bef632d4-6ec1-4cf4-9726-3c1dc34eedc1
 
 ## Dependencies
