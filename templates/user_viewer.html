@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+
+<div class="container mt-5">
+  <h1 class="text-center fw-bold mb-2">Status Page</h1>
+  <hr style="width: 50%; margin: auto;">
+  <br>
+
+  <div class="row justify-content-between align-items-center mb-5">
+    <!-- TIMER -->
+    <div id="timerSection" class="col-md-6 d-none text-start">
+      <h2><i class="fa fa-stopwatch action-icon"></i> Remaining Time</h2>
+      <h4 id="countdown" class="text-warning">Loading...</h4>
+    </div>
+
+    <!-- SUPPORT -->
+    <div id="supportSection" class="col-md-6 d-none text-end">
+      <div id="supportBlock" class="p-3" style="cursor: help;" title="">
+        <h2>Support <i class="fa-solid fa-circle-info"></i></h2>
+        <div class="progress mt-3" style="height: 4px; border-radius: 50px; overflow: hidden; max-width: 300px; margin-left: auto;">
+          <div id="supportBar" class="progress-bar bg-warning" role="progressbar" style="width: 0%; transition: width 1s ease;" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+        <p id="supportAdminsText" class="mt-2 small text-muted">Online admins: 0</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="row justify-content-center">
+    <!-- STATS -->
+    <div id="statsSection" class="col-md-4 d-none mb-4">
+      <div class="card shadow-sm border">
+        <div class="card-body">
+          <h5 class="card-title fw-bold mb-2 text-center"><i class="fa-solid fa-chart-pie"></i> Event Statistics</h5>
+          <br>
+          <canvas id="statsPieChart" style="max-height: 200px;"></canvas>
+          <ul class="list-group list-group-flush text-center mt-3" id="statsList">
+            <li class="list-group-item"><span id="totalSubmits" class="fw-bold text-warning"></span> Submits</li>
+            <li class="list-group-item"><span id="failureRate" class="fw-bold text-danger"></span> Failure</li>
+            <li class="list-group-item"><span id="successRate" class="fw-bold text-success"></span> Success</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCOREBOARD -->
+    <div class="col-md-6 mb-4">
+      <div class="card shadow-sm border">
+        <div class="card-body">
+          <h5 class="card-title fw-bold mb-2 text-center"><i class="fa fa-chart-line action-icon"></i> Scoreboard (Top {{ nb_teams }})</h5>
+          <br>
+          <ul id="teamList" class="list-group list-group-flush text-center mt-3">
+            <li class="list-group-item">Loading teams...</li>
+          </ul>
+          <p class="mt-3 text-muted small text-center">Scoreboard of teams that have solved at least one challenge, displayed in random order.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<br>
+<p class="text-center mt-4 text-muted">
+  <i>This page shows a random scoreboard, current support load, and overall event data. <br> 
+    To refresh the information, please reload the page.</i>
+</p>
+<br>
+<footer>
+  <p style="text-align: center;">
+    <a href="https://hackolyte.fr/">
+      <img src="https://hackolyte.fr/wp-content/uploads/2024/09/cropped-cropped-logo.png" alt="Hack'olyte logo" style="height: 30px; vertical-align: middle; margin-right: 5px;">
+    </a>
+    Plugin developed by the association <a href="https://hackolyte.fr/">Hack'olyte</a> - v1.0
+  </p>
+</footer>
+
+<script>
+  // Stats
+  fetch('/plugins/status-page/api/user/stats', { credentials: "same-origin" })
+    .then(res => res.json())
+    .then(data => {
+      if (data.show_stats) {
+        document.getElementById("totalSubmits").innerText = data.total_subs;
+        document.getElementById("failureRate").innerText = data.failure_rate + "%";
+        document.getElementById("successRate").innerText = data.success_rate + "%";
+
+        const statsSection = document.getElementById("statsSection");
+        statsSection.classList.remove("d-none");
+
+        const ctx = document.getElementById("statsPieChart").getContext("2d");
+        new Chart(ctx, {
+          type: "doughnut",
+          data: {
+            labels: [`Solves (${data.correct_subs})`, `Fails (${data.incorrect_subs})`],
+            datasets: [{
+              data: [data.correct_subs, data.incorrect_subs],
+              backgroundColor: ["#28a745", "#dc3545"],
+              borderWidth: 2
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: {
+                position: 'right',
+              },
+              datalabels: {
+                color: '#000',
+                formatter: (value, context) => {
+                  let total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                  let percentage = ((value / total) * 100).toFixed(1) + "%";
+                  return percentage;
+                }
+              }
+            }
+          },
+          plugins: [ChartDataLabels]
+        });
+      }
+    })
+    .catch(() => {
+      console.error("Error loading stats");
+    });
+
+  // Scoreboard
+  fetch('/plugins/status-page/api/user/top', { credentials: "same-origin" })
+    .then(res => res.json())
+    .then(teams => {
+      const list = document.getElementById("teamList");
+      list.innerHTML = "";
+
+      if (!teams || teams.length === 0) {
+        list.innerHTML = "<li class='list-group-item text-danger'>No teams to display.</li>";
+        return;
+      }
+
+      teams.forEach(team => {
+        const li = document.createElement("li");
+        li.className = "list-group-item text-center";
+        li.innerHTML = `<strong>${team.name}</strong>`;
+        list.appendChild(li);
+      });
+    })
+    .catch(() => {
+      const list = document.getElementById("teamList");
+      list.innerHTML = "<li class='list-group-item text-danger'>Error loading teams.</li>";
+    });
+
+  // Timer (indépendant)
+  fetch('/plugins/status-page/api/user/stats', { credentials: "same-origin" })
+    .then(res => res.json())
+    .then(data => {
+      if (data.show_timer && data.end_time) {
+        const timerSection = document.getElementById("timerSection");
+        const countdown = document.getElementById("countdown");
+        timerSection.classList.remove("d-none");
+
+        const endTime = new Date(data.end_time);
+
+        function updateCountdown() {
+          const now = new Date();
+          const diff = endTime - now;
+
+          if (diff <= 0) {
+            countdown.innerText = "Event ended";
+            clearInterval(interval);
+            return;
+          }
+
+          const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+          const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+          const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+          const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+          countdown.innerText = `${days}D ${hours}H ${minutes}M ${seconds}S`;
+        }
+
+        updateCountdown();
+        const interval = setInterval(updateCountdown, 1000);
+      }
+    })
+    .catch(() => {
+      console.error("Error loading timer");
+    });
+
+  // Support (indépendant)
+  fetch('/plugins/status-page/api/user/stats', { credentials: "same-origin" })
+    .then(res => res.json())
+    .then(data => {
+      if (data.show_support) {
+        const supportSection = document.getElementById("supportSection");
+        supportSection.classList.remove("d-none");
+        
+        const timerSection = document.getElementById("timerSection");
+        const timerVisible = !timerSection.classList.contains("d-none");
+
+        if (!timerVisible) {
+          supportSection.classList.add("ms-auto");
+        } else {
+          supportSection.classList.remove("ms-auto");
+        }
+
+        const supportBar = document.getElementById("supportBar");
+        setTimeout(() => {
+          supportBar.style.width = data.support_percent + "%";
+        }, 200);
+        supportBar.setAttribute("aria-valuenow", data.support_percent);
+
+        const supportBlock = document.getElementById("supportBlock");
+        supportBlock.title = `Support is currently at ${data.support_percent}% — thank you for your patience.`;
+
+        document.getElementById("supportAdminsText").innerText = "Online admins: " + data.support_admins_online;
+      }
+    })
+    .catch(() => {
+      console.error("Error loading support");
+    });
+</script>
+{% endblock %}
