@@ -93,7 +93,7 @@
         new Chart(ctx, {
           type: "doughnut",
           data: {
-            labels: [`Solves (${data.correct_subs})`, `Fails (${data.incorrect_subs})`],
+            labels: [`Solves (${Number(data.correct_subs)})`, `Fails (${Number(data.incorrect_subs)})`],
             datasets: [{
               data: [data.correct_subs, data.incorrect_subs],
               backgroundColor: ["#28a745", "#dc3545"],
@@ -137,11 +137,16 @@
       }
 
       teams.forEach(team => {
-        const li = document.createElement("li");
-        li.className = "list-group-item text-center";
-        li.innerHTML = `<strong>${team.name}</strong>`;
-        list.appendChild(li);
-      });
+      const li = document.createElement("li");
+      li.className = "list-group-item text-center";
+      
+      const strong = document.createElement("strong");
+      strong.textContent = team.name;
+      li.appendChild(strong);
+    
+      list.appendChild(li);
+    });
+      
     })
     .catch(() => {
       const list = document.getElementById("teamList");
