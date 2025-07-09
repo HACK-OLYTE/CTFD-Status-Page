@@ -8,7 +8,14 @@ window.addEventListener("load", function () {
         var a = document.createElement("a");
         a.className = "nav-link";
         a.href = "/plugins/status-page/user";
-        a.innerText = "Status";
+
+        var icon = document.createElement("i");
+        icon.className = "fa fa-rss pr-1";
+
+        var text = document.createTextNode("Status");
+
+        a.appendChild(icon);
+        a.appendChild(text);
 
         li.appendChild(a);
         navbar.appendChild(li);
